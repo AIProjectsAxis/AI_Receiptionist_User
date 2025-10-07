@@ -11,7 +11,7 @@ import {
   FormInput,
 } from '../common/FormElements';
 import Button from '../common/Button';
-import { EditIcon, PlusIcon, TrashIcon, X, Eye, EyeOff, Play, Pause } from 'lucide-react';
+import { EditIcon, PlusIcon, TrashIcon, X, Eye, EyeOff, Play, Pause, Search } from 'lucide-react';
 import { useFormik } from 'formik';
 import dynamic from "next/dynamic";
 import "@uiw/react-md-editor/markdown-editor.css";
@@ -839,16 +839,17 @@ const CustomerInteraction: React.FC<CustomerInteractionProps> = ({
 
                 {showVoiceDropdown && (
                   <div
-                    className={`absolute left-0 right-0 z-[9999] bg-white/80 backdrop-blur-lg rounded-xl shadow-2xl border border-gray-200 w-full max-h-[500px] overflow-hidden ${dropdownDirection === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'} animate-fade-in`}
+                    className={`absolute left-0 right-0 z-[9999] bg-white/80 backdrop-blur-lg rounded-xl shadow-2xl border border-gray-200 w-full max-h-[300px] overflow-hidden ${dropdownDirection === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'} animate-fade-in`}
                     style={{ transition: 'box-shadow 0.2s, background 0.2s' }}
                     tabIndex={-1}
                   >
                     <div className="p-3 border-b border-gray-100">
                       <div className="relative">
-                        <svg className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5A7 7 0 105 5a7 7 0 0012 0z" /></svg>
+                        {/* <svg className="absolute left-2 top-2.5 h-5 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5A7 7 0 105 5a7 7 0 0012 0z" /></svg> */}
+                        <Search className="absolute left-2 top-2.5 h-5 w-5 text-gray-400" />
                         <input
                           placeholder="Search voices by name, accent, gender..."
-                          className="pl-8 pr-2 text-sm border-gray-200 focus:ring-2 focus:ring-primary focus:outline-none rounded-md bg-white/80 w-full"
+                          className="pl-8  pr-2 text-sm border border-gray-200 focus:ring-2 h-[40px] focus:ring-primary focus:outline-none rounded-md bg-white/80 w-full"
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                         />

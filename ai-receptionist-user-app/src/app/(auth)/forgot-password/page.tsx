@@ -9,7 +9,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
-import { setToken } from '@/_utils/cookies';
+import { removeToken, setToken } from '@/_utils/cookies';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
 import Image from 'next/image';
 
@@ -289,8 +289,7 @@ export default function ForgotPasswordPage() {
           setIsToken(response?.data?.token);
           setStatus(response?.data?.status);
           setStatus_onboarding(response?.data?.status_onboarding);
-          console.log("status", status);
-          console.log("status_onboarding", status_onboarding);
+          
           toast.success('OTP verified successfully!', {
             position: "top-right",
             autoClose: 2000,
@@ -350,20 +349,23 @@ export default function ForgotPasswordPage() {
             progress: undefined,
             theme: "light",
           });
-          console.log("status ----", status);
-          console.log("status_onboarding ---", status_onboarding);
-          if (status === "approved" && status_onboarding === "completed") {
-            router.push('/dashboard');
-            return;
-          } else
-            if (status === "pending" && (status_onboarding === "pending_onboarding" || status_onboarding === "step_1" || status_onboarding === "step_2" || status_onboarding === "step_3")) {
-              router.push('/onboarding');
-              return;
-            } else
-              if (status === "pending" && status_onboarding === "completed") {
-                router.push('/approval-pending');
-                return;
-              }
+          removeToken();
+          router.push('/login');
+          return;
+   
+
+          // if (status === "approved" && status_onboarding === "completed") {
+          //   router.push('/dashboard');
+          //   return;
+          // } else
+          //   if (status === "pending" && (status_onboarding === "pending_onboarding" || status_onboarding === "step_1" || status_onboarding === "step_2" || status_onboarding === "step_3")) {
+          //     router.push('/onboarding');
+          //     return;
+          //   } else
+          //     if (status === "pending" && status_onboarding === "completed") {
+          //       router.push('/approval-pending');
+          //       return;
+          //     }
 
         }
       }
