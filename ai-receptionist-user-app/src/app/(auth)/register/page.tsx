@@ -76,6 +76,7 @@ const RegisterPage = () => {
                 then: () => Yup.string().required('OTP is required').length(6, 'OTP must be 6 characters')
             })
         }),
+        
         onSubmit: async (values) => {
             try {
                 setIsLoading(true);

@@ -691,3 +691,15 @@ body {
 .react-international-phone-country-selector-button{
 width: 51px !important;
 }
+
+/* Hide Edge/IE native password reveal button */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
+/* Hide Edge native password reveal button (Chromium-based Edge) */
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-reveal {
+  display: none !important;
+}
