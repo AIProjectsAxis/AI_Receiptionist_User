@@ -64,7 +64,10 @@ export default function LoginPage() {
                     router.push('/dashboard')
                     return;
                 } else
-
+                if ( response.data?.status === "approved" && (response.data?.status_onboarding === "pending_onboarding" || response.data?.status_onboarding !== "completed" || response.data?.status_onboarding === "step_1" || response.data?.status_onboarding === "step_2" || response.data?.status_onboarding === "step_3")) {
+                    router.push('/onboarding')
+                    return;
+                }
                 if ( response.data?.status === "pending" && (response.data?.status_onboarding === "pending_onboarding" || response.data?.status_onboarding !== "completed" || response.data?.status_onboarding === "step_1" || response.data?.status_onboarding === "step_2" || response.data?.status_onboarding === "step_3")) {
                     router.push('/onboarding')
                     return;
