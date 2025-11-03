@@ -27,6 +27,9 @@ import {
 import { createCampaignApiRequest, getAlReadyHavePhoneNumberApiRequest, getAssistantListApiRequest, getCampaignByIdApiRequest, updateCampaignApiRequest } from '@/network/api'
 import { Textarea } from '@/component/ui/textarea'
 import { toast } from 'react-toastify'
+import { useSelector } from 'react-redux'
+import { RootState } from '@/lib/Redux/store/store'
+import { localToUTC, utcToLocal, getTimezoneAbbreviation } from '@/_utils/general'
 
 
 const FormSchema = z.object({
@@ -54,6 +57,11 @@ const CampaignForm = ({ isEdit }: { isEdit?: string }) => {
   const searchParams = useSearchParams()
   const campaignIdForEdit = searchParams.get('id')
   const router = useRouter()
+
+  // Get timezone from Redux store
+  const companyData = useSelector((state: RootState) => state.company.companyData) as any
+  const timezone = companyData?.timezone || 'UTC'
+  const timezoneAbbr = getTimezoneAbbreviation(timezone)
 
   const [formSubmitted, setFormSubmitted] = useState<string | null>(null)
   const [isSubmitting, setSubmitting] = useState(false)
@@ -635,39 +643,34 @@ const CampaignForm = ({ isEdit }: { isEdit?: string }) => {
                   <FormItem>
                     <FormLabel className="flex items-center gap-2 text-sm font-medium text-gray-700">
                       <Calendar className="w-4 h-4" />
-                      Start Date
+                      Start Date ({timezoneAbbr})
                     </FormLabel>
                     <FormControl>
                       <Input
                         type="datetime-local"
                         className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg shadow-sm transition-colors"
                         min={(() => {
+                          // Get current time in user's timezone
                           const now = new Date()
-                          const year = now.getFullYear()
-                          const month = String(now.getMonth() + 1).padStart(2, '0')
-                          const day = String(now.getDate()).padStart(2, '0')
-                          const hours = String(now.getHours()).padStart(2, '0')
-                          const minutes = String(now.getMinutes()).padStart(2, '0')
+                          const localDate = new Date(now.toLocaleString('en-US', { timeZone: timezone }))
+                          const year = localDate.getFullYear()
+                          const month = String(localDate.getMonth() + 1).padStart(2, '0')
+                          const day = String(localDate.getDate()).padStart(2, '0')
+                          const hours = String(localDate.getHours()).padStart(2, '0')
+                          const minutes = String(localDate.getMinutes()).padStart(2, '0')
                           return `${year}-${month}-${day}T${hours}:${minutes}`
                         })()}
-                        value={(() => {
-                          if (!field.value) return ""
-                          const date = new Date(field.value)
-                          const year = date.getFullYear()
-                          const month = String(date.getMonth() + 1).padStart(2, '0')
-                          const day = String(date.getDate()).padStart(2, '0')
-                          const hours = String(date.getHours()).padStart(2, '0')
-                          const minutes = String(date.getMinutes()).padStart(2, '0')
-                          return `${year}-${month}-${day}T${hours}:${minutes}`
-                        })()}
+                        value={utcToLocal(field.value, timezone)}
                         onChange={(e) => {
                           const localDateTimeString = e.target.value
                           if (!localDateTimeString) return
                           
-                          const selectedDate = new Date(localDateTimeString)
+                          // Convert local time to UTC
+                          const utcString = localToUTC(localDateTimeString, timezone)
+                          const utcDate = new Date(utcString)
                           const now = new Date()
 
-                          if (selectedDate < now) {
+                          if (utcDate < now) {
                             toast.error("Start date cannot be in the past",{
                               position: "top-right",
                               autoClose: 2000,
@@ -681,12 +684,12 @@ const CampaignForm = ({ isEdit }: { isEdit?: string }) => {
                             return
                           }
 
-                          field.onChange(selectedDate.toISOString())
+                          field.onChange(utcString)
 
                           // Auto-set end time to 1 hour later if not already set
                           const currentEndTime = form.getValues("FinishedAt")
                           if (!currentEndTime) {
-                            const endTime = new Date(selectedDate.getTime() + 60 * 60 * 1000) // 1 hour later
+                            const endTime = new Date(utcDate.getTime() + 60 * 60 * 1000) // 1 hour later
                             form.setValue("FinishedAt", endTime.toISOString())
                           }
                         }}

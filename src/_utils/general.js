@@ -155,36 +155,117 @@ export function convertToBerlinTimezone(utcDateString) {
 //   return dateTime.setZone('Europe/Berlin').toISO();
 // }
 
-export function formatDate(dateString) {
+export function formatDate(dateString, timezone = 'UTC') {
   if (!dateString) return 'N/A';
   try {
     const date = new Date(dateString);
     // Check if date is valid
     if (isNaN(date.getTime())) return 'Invalid Date';
-    return format(date, "dd-MMM yyyy HH:mm");
+    
+    // Convert to specified timezone for display
+    const localDate = new Date(date.toLocaleString('en-US', { timeZone: timezone }));
+    const day = String(localDate.getDate()).padStart(2, '0');
+    const month = localDate.toLocaleString('default', { month: 'short' });
+    const year = localDate.getFullYear();
+    const hours = String(localDate.getHours()).padStart(2, '0');
+    const minutes = String(localDate.getMinutes()).padStart(2, '0');
+    
+    return `${day}-${month} ${year} ${hours}:${minutes}`;
   } catch (error) {
     console.error('Error formatting date:', error);
     return 'Invalid Date';
   }
 }
 
-export function formatCampaignDate(dateString) {
+export function formatCampaignDate(dateString, timezone = 'UTC') {
   if (!dateString) return '-';
   try {
     const date = new Date(dateString);
     // Check if date is valid
     if (isNaN(date.getTime())) return 'Invalid Date';
     
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = date.toLocaleString('default', { month: 'short' });
-    const year = date.getFullYear();
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
+    // Convert to specified timezone for display
+    const localDate = new Date(date.toLocaleString('en-US', { timeZone: timezone }));
+    const day = String(localDate.getDate()).padStart(2, '0');
+    const month = localDate.toLocaleString('default', { month: 'short' });
+    const year = localDate.getFullYear();
+    const hours = String(localDate.getHours()).padStart(2, '0');
+    const minutes = String(localDate.getMinutes()).padStart(2, '0');
     
-    return `${day}-${month} ${year} ${hours}:${minutes}`;
+    // Get timezone abbreviation
+    const tzAbbr = getTimezoneAbbreviation(timezone);
+    
+    return `${day}-${month} ${year} ${hours}:${minutes} ${tzAbbr}`;
   } catch (error) {
     console.error('Error formatting campaign date:', error);
     return 'Invalid Date';
+  }
+}
+
+// Helper function to get timezone abbreviation
+export function getTimezoneAbbreviation(timezone) {
+  try {
+    const date = new Date();
+    const formatted = date.toLocaleString('en-US', { 
+      timeZone: timezone, 
+      timeZoneName: 'short' 
+    });
+    const parts = formatted.split(' ');
+    return parts[parts.length - 1]; // Returns abbreviation like IST, PST, etc.
+  } catch (error) {
+    return '';
+  }
+}
+
+// Convert local time to UTC for a specific timezone
+export function localToUTC(dateString, timezone) {
+  try {
+    // Parse the datetime-local string (format: YYYY-MM-DDTHH:mm)
+    const [datePart, timePart] = dateString.split('T');
+    const [year, month, day] = datePart.split('-');
+    const [hours, minutes] = timePart.split(':');
+    
+    // Create a date string that will be interpreted in the specified timezone
+    const dateStr = `${year}-${month}-${day}T${hours}:${minutes}:00`;
+    
+    // Create date in local format
+    const localDate = new Date(dateStr);
+    
+    // Convert to specified timezone and then to UTC
+    const utcDate = new Date(localDate.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const tzDate = new Date(localDate.toLocaleString('en-US', { timeZone: timezone }));
+    
+    // Calculate the offset in milliseconds
+    const offset = tzDate.getTime() - utcDate.getTime();
+    
+    // Adjust the UTC date
+    const adjustedUTC = new Date(localDate.getTime() - offset);
+    
+    return adjustedUTC.toISOString();
+  } catch (error) {
+    console.error('Error converting local to UTC:', error);
+    return new Date(dateString).toISOString();
+  }
+}
+
+// Convert UTC to local time for a specific timezone
+export function utcToLocal(isoString, timezone) {
+  try {
+    if (!isoString) return '';
+    
+    const utcDate = new Date(isoString);
+    const localDate = new Date(utcDate.toLocaleString('en-US', { timeZone: timezone }));
+    
+    const year = localDate.getFullYear();
+    const month = String(localDate.getMonth() + 1).padStart(2, '0');
+    const day = String(localDate.getDate()).padStart(2, '0');
+    const hours = String(localDate.getHours()).padStart(2, '0');
+    const minutes = String(localDate.getMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  } catch (error) {
+    console.error('Error converting UTC to local:', error);
+    return '';
   }
 }
 

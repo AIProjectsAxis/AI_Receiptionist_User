@@ -21,6 +21,8 @@ import Table from '@/component/common/Table'
 import { Edit, Loader2, Pause, Plus, Trash2, Play, Eye, PlayCircle, PauseCircle, BarChart3, Phone, Users, Clock } from 'lucide-react'
 import { deleteCampaignApiRequest, getCampaignListApiRequest } from '@/network/api'
 import { toast } from 'react-toastify'
+import { useSelector } from 'react-redux'
+import { RootState } from '@/lib/Redux/store/store'
 
 
 // Form schema
@@ -59,6 +61,9 @@ const mapApiCampaignToCampaign = (apiCampaign: any): Campaign => {
 
 const CampaignPage = () => {
   const router = useRouter()
+  const companyData = useSelector((state: any) => state.company.companyData)
+  const timezone = companyData?.timezone || 'UTC'
+  console.log("companyData in campaign page" ,companyData)
   const [loading, setLoading] = useState(false)
   const [campaignList, setCampaignList] = useState<Campaign[]>([])
   const [selectedId, setSelectedId] = useState<string>('')
@@ -70,7 +75,7 @@ const CampaignPage = () => {
 
   const formatDateStartedAt = (date: string) => {
     if (!date) return "-"
-    return formatCampaignDate(date)
+    return formatCampaignDate(date, timezone)
   } 
 
   const form = useForm<z.infer<typeof FormSchema>>({
@@ -217,7 +222,7 @@ const CampaignPage = () => {
       accessor: 'CreatedAt',
       render: (row: Campaign) => (
         <div className="flex items-center gap-2">
-          <span className="text-gray-900">{formatDate(row?.CreatedAt)}</span>
+          <span className="text-gray-900">{formatDate(row?.CreatedAt, timezone)}</span>
         </div>
       )
     },
