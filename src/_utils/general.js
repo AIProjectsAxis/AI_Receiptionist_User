@@ -225,25 +225,51 @@ export function localToUTC(dateString, timezone) {
     const [year, month, day] = datePart.split('-');
     const [hours, minutes] = timePart.split(':');
     
-    // Create a date string that will be interpreted in the specified timezone
-    const dateStr = `${year}-${month}-${day}T${hours}:${minutes}:00`;
+    // Build a string that represents the local time in the target timezone
+    // Format: "November 19, 2025 14:03:00"
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthName = monthNames[parseInt(month) - 1];
+    const dateStr = `${monthName} ${parseInt(day)}, ${year} ${hours}:${minutes}:00`;
     
-    // Create date in local format
-    const localDate = new Date(dateStr);
+    // Create a date object representing this time
+    // When we create a Date from a string without timezone info, it uses the local browser timezone
+    // So we need to work around this
     
-    // Convert to specified timezone and then to UTC
-    const utcDate = new Date(localDate.toLocaleString('en-US', { timeZone: 'UTC' }));
-    const tzDate = new Date(localDate.toLocaleString('en-US', { timeZone: timezone }));
+    // First, let's get the offset for the target timezone at this specific date/time
+    // We'll use a reference date in UTC and see what time it shows in the target timezone
+    const referenceUTC = new Date(Date.UTC(year, month - 1, day, 12, 0, 0)); // noon UTC on that day
+    const referenceTZString = referenceUTC.toLocaleString('en-US', { 
+      timeZone: timezone,
+      hour12: false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
     
-    // Calculate the offset in milliseconds
-    const offset = tzDate.getTime() - utcDate.getTime();
+    // Extract the timezone offset by comparing UTC time vs TZ time
+    const [refDatePart, refTimePart] = referenceTZString.split(', ');
+    const [refM, refD, refY] = refDatePart.split('/');
+    const [refH, refMin] = refTimePart.split(':');
+    const tzTime = Date.UTC(refY, refM - 1, refD, refH, refMin, 0);
+    const utcTime = referenceUTC.getTime();
+    const offsetMs = tzTime - utcTime;
     
-    // Adjust the UTC date
-    const adjustedUTC = new Date(localDate.getTime() - offset);
+    // Now apply this offset to our input time
+    // The user gave us a time in their timezone, so we subtract the offset to get UTC
+    const inputTimeMs = Date.UTC(year, month - 1, day, hours, minutes, 0);
+    const utcTimeMs = inputTimeMs - offsetMs;
     
-    return adjustedUTC.toISOString();
+    return new Date(utcTimeMs).toISOString();
   } catch (error) {
-    console.error('Error converting local to UTC:', error);
+    console.error('Error converting local to UTC:', error, {
+      dateString,
+      timezone,
+      error: error.message
+    });
+    // Fallback: try to parse as-is
     return new Date(dateString).toISOString();
   }
 }

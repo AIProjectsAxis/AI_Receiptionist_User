@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Button from '@/component/common/Button';
 import Card from '@/component/common/Card';
 import { CardHeader, CardTitle, CardContent } from '@/component/ui/card';
+import { useSelector } from 'react-redux';
+import { formatDate, getTimezoneAbbreviation } from '@/_utils/general';
 
 // Helper: status color
 const getStatusColor = (status: string) => {
@@ -38,13 +40,6 @@ const formatTime = (msOrSec: number) => {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
-// Helper: format time string
-const formatTimeString = (iso: string) => {
-    if (!iso) return '-';
-    const date = new Date(iso);
-    return date.toLocaleString();
-};
-
 // Helper: format duration in mm:ss
 const formatDuration = (ms: number) => {
   if (!ms || isNaN(ms) || ms < 0) return '-';
@@ -65,6 +60,12 @@ const categorizeInteractions = (contacts: any[] = []) => {
 const CampaignIdPage = () => {
     const { id } = useParams();
     const router = useRouter();
+    
+    // Get timezone from Redux store - API returns UTC times, we convert to user's local timezone
+    const companyData = useSelector((state: any) => state.company.companyData);
+    const timezone = companyData?.timezone || 'UTC';
+    const timezoneAbbr = getTimezoneAbbreviation(timezone);
+    
     const [campaign, setCampaign] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [campaignStatus, setCampaignStatus] = useState('Start');
@@ -77,6 +78,12 @@ const CampaignIdPage = () => {
     const [audioDuration, setAudioDuration] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
     const audioRef = useRef<HTMLAudioElement>(null);
+    
+    // Format dates from UTC to user's local timezone
+    const formatDateWithTimezone = (dateString: string) => {
+        if (!dateString) return '-';
+        return formatDate(dateString, timezone);
+    };
 
     // Map contacts for table display
     const contacts = React.useMemo(() => {
@@ -209,10 +216,19 @@ const CampaignIdPage = () => {
                                 className="cursor-pointer hover:bg-gray-100 p-1 rounded"
                                 onClick={() => { router.back() }}
                             />
-                            <h1 className="text-lg md:text-2xl font-semibold">{campaign?.name || campaign?.Name}</h1>
-                            <span className={`px-3 py-1.5 rounded-full ${getStatusColor(campaign?.status || campaign?.Status)} text-base`}>
-                                {campaign?.status || campaign?.Status}
-                            </span>
+                            <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                    <h1 className="text-lg md:text-2xl font-semibold">{campaign?.name || campaign?.Name}</h1>
+                                    <span className={`px-3 py-1.5 rounded-full ${getStatusColor(campaign?.status || campaign?.Status)} text-base`}>
+                                        {campaign?.status || campaign?.Status}
+                                    </span>
+                                </div>
+                                {timezoneAbbr && (
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        All times shown in {timezoneAbbr}
+                                    </p>
+                                )}
+                            </div>
                         </div>
                         <div className="flex items-center gap-2">
                             <Button
@@ -492,8 +508,8 @@ const CampaignIdPage = () => {
                                         <span className="font-medium text-gray-900">{selectedContact.email || '-'}</span>
                                     </div>
                                     <div className="flex items-center gap-3 col-span-1 md:col-span-2">
-                                        <span className="text-sm text-gray-500">Campaign Created:</span>
-                                        <span className="font-medium text-gray-900">{campaign?.created_at ? formatTimeString(campaign.created_at) : '-'}</span>
+                                        <span className="text-sm text-gray-500">Campaign Created ({timezoneAbbr}):</span>
+                                        <span className="font-medium text-gray-900">{formatDateWithTimezone(campaign?.created_at)}</span>
                                     </div>
                                 </div>
 

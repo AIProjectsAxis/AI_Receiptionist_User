@@ -78,6 +78,7 @@ const CampaignForm = ({ isEdit }: { isEdit?: string }) => {
   const [isDeletingContact, setIsDeletingContact] = useState(false)
   const [phoneNumbers, setPhoneNumbers] = useState<any[]>([])
   const [isProcessingFile, setIsProcessingFile] = useState(false)
+  const [minDateTime, setMinDateTime] = useState<string>("")
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -91,31 +92,49 @@ const CampaignForm = ({ isEdit }: { isEdit?: string }) => {
     }
   })
 
-  // Helper to format date to "YYYY-MM-DDTHH:mm:ss.sssZ"
-  function toApiISOString(dateString: string | undefined): string | undefined {
-    if (!dateString) return undefined
-    // If already in ISO format with Z, just return
-    if (dateString.endsWith('Z')) return dateString
-    // If from <input type="datetime-local">, it's "YYYY-MM-DDTHH:mm"
-    // Convert to Date, then toISOString
-    const d = new Date(dateString)
-    return d.toISOString()
-  }
+  // Update minimum datetime based on user's timezone
+  useEffect(() => {
+    const updateMinDateTime = () => {
+      const now = new Date()
+      const localDate = new Date(now.toLocaleString('en-US', { timeZone: timezone }))
+      const year = localDate.getFullYear()
+      const month = String(localDate.getMonth() + 1).padStart(2, '0')
+      const day = String(localDate.getDate()).padStart(2, '0')
+      const hours = String(localDate.getHours()).padStart(2, '0')
+      const minutes = String(localDate.getMinutes()).padStart(2, '0')
+      setMinDateTime(`${year}-${month}-${day}T${hours}:${minutes}`)
+    }
+
+    // Update immediately
+    updateMinDateTime()
+
+    // Update every minute to keep min time current
+    const interval = setInterval(updateMinDateTime, 60000)
+
+    return () => clearInterval(interval)
+  }, [timezone])
 
   function onSubmit(data: z.infer<typeof FormSchema>) {
     setSubmitting(true)
 
-    // Validate time range (VAPI requirement: max 1 hour difference)
-    if (data.StartedAt && data.FinishedAt) {
+    // Validate that start time is not in the past (with 1-minute buffer)
+    if (data.StartedAt) {
       const startDate = new Date(data.StartedAt)
-      const endDate = new Date(data.FinishedAt)
-      const timeDiff = endDate.getTime() - startDate.getTime()
-      const maxAllowedDiff = 60 * 60 * 1000 // 1 hour in milliseconds
+      const now = new Date()
+      const bufferTime = 60 * 1000 // 1 minute buffer
+      const nowWithBuffer = new Date(now.getTime() - bufferTime)
 
-      if (timeDiff > maxAllowedDiff) {
-        toast.error("Campaign duration cannot exceed 1 hour",{
+      if (startDate < nowWithBuffer) {
+        const localNow = new Date(now.toLocaleString('en-US', { timeZone: timezone }))
+        const formattedTime = localNow.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: true 
+        })
+        
+        toast.error(`Start date cannot be in the past. Current time is ${formattedTime} (${timezoneAbbr}). Please select a future time.`, {
           position: "top-right",
-          autoClose: 2000,
+          autoClose: 4000,
           hideProgressBar: false,
           closeOnClick: true,
           pauseOnHover: true,
@@ -145,20 +164,9 @@ const CampaignForm = ({ isEdit }: { isEdit?: string }) => {
         formData.append('file', data.contactsFile[0])
       }
 
-      // Append date fields with correct API field names and correct format
+      // Append start date in UTC format (already converted in onChange handler)
       if (data.StartedAt) {
-        // API expects "earliestAt"
-        const formattedStart = toApiISOString(data.StartedAt)
-        if (formattedStart) {
-          formData.append('started_at', formattedStart)
-        }
-      }
-      if (data.FinishedAt) {
-        // API expects "latestAt"
-        const formattedEnd = toApiISOString(data.FinishedAt)
-        if (formattedEnd) {
-          formData.append('latestAt', formattedEnd)
-        }
+        formData.append('started_at', data.StartedAt)
       }
       createCampaignApiRequest(formData).then((res: any) => {
         if (res) {
@@ -562,7 +570,7 @@ const CampaignForm = ({ isEdit }: { isEdit?: string }) => {
               )}
             </div>
             <div className="text-xs text-gray-500">
-              Created: {campaign.CreatedAt ? new Date(campaign.CreatedAt).toLocaleDateString() : 'N/A'}
+              Created: {campaign?.campaign?.created_at ? new Date(campaign?.campaign?.created_at).toLocaleDateString() : 'N/A'}
             </div>
           </div>
         </div>
@@ -612,8 +620,8 @@ const CampaignForm = ({ isEdit }: { isEdit?: string }) => {
 
 
 
-            {/* Hide date fields and calling time range in edit mode */}
-            <div className={`grid grid-cols-2 gap-4 ${isEdit === "true" ? "hidden" : ""}`}>
+            {/* Phone Number and Start Date fields */}
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="phone_number"
@@ -621,7 +629,11 @@ const CampaignForm = ({ isEdit }: { isEdit?: string }) => {
                   <FormItem>
                     <FormLabel>Select Number</FormLabel>
                     <FormControl>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value || ""}
+                        disabled={isEdit === "true"}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select Number" />
                         </SelectTrigger>
@@ -636,7 +648,7 @@ const CampaignForm = ({ isEdit }: { isEdit?: string }) => {
                   </FormItem>
                 )}
               />
-               <FormField
+              <FormField
                 control={form.control}
                 name="StartedAt"
                 render={({ field }) => (
@@ -649,31 +661,46 @@ const CampaignForm = ({ isEdit }: { isEdit?: string }) => {
                       <Input
                         type="datetime-local"
                         className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg shadow-sm transition-colors"
-                        min={(() => {
-                          // Get current time in user's timezone
-                          const now = new Date()
-                          const localDate = new Date(now.toLocaleString('en-US', { timeZone: timezone }))
-                          const year = localDate.getFullYear()
-                          const month = String(localDate.getMonth() + 1).padStart(2, '0')
-                          const day = String(localDate.getDate()).padStart(2, '0')
-                          const hours = String(localDate.getHours()).padStart(2, '0')
-                          const minutes = String(localDate.getMinutes()).padStart(2, '0')
-                          return `${year}-${month}-${day}T${hours}:${minutes}`
-                        })()}
+                        disabled={isEdit === "true"}
+                        min={minDateTime}
                         value={utcToLocal(field.value, timezone)}
                         onChange={(e) => {
                           const localDateTimeString = e.target.value
-                          if (!localDateTimeString) return
+                          if (!localDateTimeString) {
+                            field.onChange("")
+                            return
+                          }
                           
-                          // Convert local time to UTC
+                          // Convert local time to UTC based on user's timezone
                           const utcString = localToUTC(localDateTimeString, timezone)
                           const utcDate = new Date(utcString)
                           const now = new Date()
+                          
+                          // Debug logging (uncomment to troubleshoot)
+                          console.log('🕐 Timezone Conversion Debug:')
+                          console.log('Selected local time:', localDateTimeString)
+                          console.log('Timezone:', timezone)
+                          console.log('Converted to UTC:', utcString)
+                          console.log('UTC Date object:', utcDate.toISOString())
+                          console.log('Current UTC time:', now.toISOString())
+                          console.log('Difference (ms):', utcDate.getTime() - now.getTime())
+                          
+                          // Add a 1-minute buffer to account for processing time
+                          const bufferTime = 60 * 1000 // 1 minute in milliseconds
+                          const nowWithBuffer = new Date(now.getTime() - bufferTime)
 
-                          if (utcDate < now) {
-                            toast.error("Start date cannot be in the past",{
+                          // Validate that the selected time is not in the past (with buffer)
+                          if (utcDate < nowWithBuffer) {
+                            const localNow = new Date(now.toLocaleString('en-US', { timeZone: timezone }))
+                            const formattedTime = localNow.toLocaleTimeString('en-US', { 
+                              hour: '2-digit', 
+                              minute: '2-digit',
+                              hour12: true 
+                            })
+                            
+                            toast.error(`You can only add future time. Current time is ${formattedTime} (${timezoneAbbr}). Please select a time after the current time.`, {
                               position: "top-right",
-                              autoClose: 2000,
+                              autoClose: 4000,
                               hideProgressBar: false,
                               closeOnClick: true,
                               pauseOnHover: true,
@@ -681,20 +708,19 @@ const CampaignForm = ({ isEdit }: { isEdit?: string }) => {
                               progress: undefined,
                               theme: "light",
                             })
+                            // Clear the field
+                            field.onChange("")
                             return
                           }
 
+                          // Store UTC string in form
                           field.onChange(utcString)
-
-                          // Auto-set end time to 1 hour later if not already set
-                          const currentEndTime = form.getValues("FinishedAt")
-                          if (!currentEndTime) {
-                            const endTime = new Date(utcDate.getTime() + 60 * 60 * 1000) // 1 hour later
-                            form.setValue("FinishedAt", endTime.toISOString())
-                          }
                         }}
                       />
                     </FormControl>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Select a future date and time for the campaign to start (in {timezone})
+                    </p>
                     <FormMessage className='text-red-500 text-[12px]' />
                   </FormItem>
                 )}

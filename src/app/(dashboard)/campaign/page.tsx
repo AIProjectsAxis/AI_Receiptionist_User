@@ -11,7 +11,7 @@ import { Input } from '@/component/ui/input'
 import { Textarea } from '@/component/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/component/common/Dialog'
 
-import { formatDate, formatCampaignDate } from '@/_utils/general'
+import { formatDate, formatCampaignDate, getTimezoneAbbreviation } from '@/_utils/general'
 
 
 import Card from '@/component/common/Card'
@@ -61,9 +61,12 @@ const mapApiCampaignToCampaign = (apiCampaign: any): Campaign => {
 
 const CampaignPage = () => {
   const router = useRouter()
+  
+  // Get timezone from Redux store - API returns UTC times, we convert to user's local timezone
   const companyData = useSelector((state: any) => state.company.companyData)
   const timezone = companyData?.timezone || 'UTC'
-  console.log("companyData in campaign page" ,companyData)
+  console.log("companyData in campaign page" ,companyData?.timezone)
+  
   const [loading, setLoading] = useState(false)
   const [campaignList, setCampaignList] = useState<Campaign[]>([])
   const [selectedId, setSelectedId] = useState<string>('')
@@ -72,6 +75,12 @@ const CampaignPage = () => {
   const [campaignStatuses, setCampaignStatuses] = useState<{ [key: string]: string }>({})
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [deleteBtnLoading, setDeleteBtnLoading] = useState(false)
+
+  // Format dates from UTC to user's local timezone
+  const formatDateCreatedAt = (date: string) => {
+    if (!date) return "-"
+    return formatDate(date, timezone)
+  }
 
   const formatDateStartedAt = (date: string) => {
     if (!date) return "-"
@@ -222,7 +231,7 @@ const CampaignPage = () => {
       accessor: 'CreatedAt',
       render: (row: Campaign) => (
         <div className="flex items-center gap-2">
-          <span className="text-gray-900">{formatDate(row?.CreatedAt, timezone)}</span>
+          <span className="text-gray-900">{formatDateCreatedAt(row?.CreatedAt)}</span>
         </div>
       )
     },
@@ -297,13 +306,22 @@ const CampaignPage = () => {
 
   const stats = getCampaignStats()
 
+  const timezoneAbbr = getTimezoneAbbreviation(timezone)
+
   return (
     <div className="py-[24px]">
       {/* Header */}
       <div className="page-header mb-8">
         <div>
           <h1 className="page-title">Campaign Management</h1>
-          <p className="page-subtitle">Create and manage your outbound calling campaigns</p>
+          <p className="page-subtitle">
+            Create and manage your outbound calling campaigns
+            {timezoneAbbr && (
+              <span className="ml-2 text-xs text-gray-500 font-normal">
+                • All times shown in {timezoneAbbr}
+              </span>
+            )}
+          </p>
         </div>
         <Button 
           variant="primary"
