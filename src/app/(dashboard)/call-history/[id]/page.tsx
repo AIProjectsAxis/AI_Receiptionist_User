@@ -1,5 +1,4 @@
 'use client';
-export const runtime = 'edge';
 
 import { useEffect, useState } from 'react';
 import Card from '@/component/common/Card';
@@ -7,6 +6,8 @@ import { getAssistantListApiRequest, getCallDetailsApiRequest } from '@/network/
 import { PauseIcon, PlayIcon, PhoneIcon, ClockIcon, MessageSquare, FileText, UserIcon } from 'lucide-react';
 import Button from '@/component/common/Button';
 import { useParams } from 'next/navigation';
+import { useSelector } from 'react-redux';
+import { getTimezoneAbbreviation } from '@/_utils/general';
 
 interface Message {
     message: string;
@@ -34,11 +35,18 @@ interface Call {
 
 export default function CallDetails() {
     const { id } = useParams();
+    
+    // Get timezone from Redux store - API returns UTC times, we convert to user's local timezone
+    const companyData = useSelector((state: any) => state.company.companyData);
+    const timezone = companyData?.timezone || 'UTC';
+    const timezoneAbbr = getTimezoneAbbreviation(timezone);
+    
     const [call, setCall] = useState<Call | null>(null);
     const [loading, setLoading] = useState(true);
     const [isPlaying, setIsPlaying] = useState(false);
     const [agents, setAgents] = useState<any[]>([]);
     const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+    
     const formatDuration = (ms: number): string => {
         const minutes = Math.floor(ms / 60000);
         const seconds = Math.floor((ms % 60000) / 1000);
@@ -47,22 +55,32 @@ export default function CallDetails() {
 
     const formatDateTime = (dateStr: string): string => {
         if (!dateStr) return 'N/A';
+        
         try {
+            // Parse the UTC date string (e.g., "2025-11-24T19:25:49.065Z")
             const date = new Date(dateStr);
-            // Check if date is valid
-            if (isNaN(date.getTime())) return 'Invalid Date';
             
-            return date.toLocaleString('en-US', {
+            // Check if date is valid
+            if (isNaN(date.getTime())) {
+                console.error('Invalid date:', dateStr);
+                return 'Invalid Date';
+            }
+            
+            // Format date in the user's timezone
+            const formattedDate = date.toLocaleString('en-US', {
                 month: 'long',
                 day: 'numeric',
                 year: 'numeric',
                 hour: 'numeric',
                 minute: '2-digit',
+                second: '2-digit',
                 hour12: true,
-                timeZone: 'local' // This will use the user's local timezone
+                timeZone: timezone
             });
+            
+            return formattedDate;
         } catch (error) {
-            console.error('Error formatting date:', error);
+            console.error('Error formatting date:', error, dateStr);
             return 'Invalid Date';
         }
     };
@@ -300,11 +318,11 @@ export default function CallDetails() {
                         <div className="">
                             <div className="space-y-6">
                                 <div>
-                                    <h3 className="text-gray-400 text-sm mb-2">Start Time</h3>
+                                    <h3 className="text-gray-400 text-sm mb-2">Start Time {timezoneAbbr && `(${timezoneAbbr})`}</h3>
                                     <p className="text-lg text-black font-medium">{formatDateTime(call.started_at)}</p>
                                 </div>
                                 <div>
-                                    <h3 className="text-gray-400 text-sm mb-2">End Time</h3>
+                                    <h3 className="text-gray-400 text-sm mb-2">End Time {timezoneAbbr && `(${timezoneAbbr})`}</h3>
                                     <p className="text-lg text-black font-medium">{formatDateTime(call.ended_at)}</p>
                                 </div>
                             </div>
