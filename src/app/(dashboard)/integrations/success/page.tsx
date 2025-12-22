@@ -1,30 +1,27 @@
 'use client';
 export const runtime = 'edge';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { googleAuthApiRequest, outlookAuthApiRequest } from '@/network/api';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
-
-const HAS_RUN_AUTH_KEY = 'oauth_auth_has_run';
 
 export default function OAuthCallbackPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('Processing authorization...');
+  const hasRunAuthRef = useRef(false);
+  const isProcessingRef = useRef(false);
   
-  const handleAuth = async () => {
-    // Get URL parameters once at the start
+  useEffect(() => {
     const code = searchParams.get('code');
     const state = searchParams.get('state');
     const error = searchParams.get('error');
     
-    console.log('code', code);
-    console.log('state', state);
-    console.log('error', error);
+    console.log('useEffect triggered - code:', code, 'state:', state, 'error:', error);
     
-    // https://dev-ai-receptionist.pages.dev/integrations/success?code=M.C559_SN1.2.U.554c3b5e-86ba-085d-c9c6-5da073f47dd6&state=outlook
+    // Check for OAuth error first
     if (error) {
       console.error('OAuth error:', error);
       setStatus('error');
@@ -33,56 +30,84 @@ export default function OAuthCallbackPage() {
       return;
     }
 
+    // Check if we have required parameters
     if (!code || !state) {
       console.error('Missing code or state parameters');
-      setStatus('error');
-      setMessage('Invalid authorization parameters. Redirecting back...');
-      setTimeout(() => router.push('/integrations/synced-calendars'), 2000);
       return;
     }
 
-    try {
-      if (state === "google") {
-        const response = await googleAuthApiRequest(JSON.stringify({ code, state }));
-        setStatus('success');
-        setMessage('Google Calendar connected successfully! Redirecting...');
-        setTimeout(() => router.push('/integrations/synced-calendars'), 2000);
-      } else if (state === "outlook") {
-        const response = await outlookAuthApiRequest(JSON.stringify({ code, state }));
-        setStatus('success');
-        setMessage('Outlook Calendar connected successfully! Redirecting...');
-        setTimeout(() => router.push('/integrations/synced-calendars'), 2000);
-      } else {
-        console.error('Invalid state parameter:', state);
-        setStatus('error');
-        setMessage('Invalid authorization state. Redirecting back...');
-        setTimeout(() => router.push('/integrations/synced-calendars'), 2000);
-      }
-    } catch (error: any) {
-      console.error('Token Exchange Error:', error);
-      setStatus('error');
-      setMessage(`Failed to connect ${state === 'google' ? 'Google' : 'Outlook'} Calendar. Redirecting back...`);
-      setTimeout(() => router.push('/integrations/synced-calendars'), 2000);
+    // Create a unique key for this specific OAuth flow
+    const authKey = `oauth_processing_${code}`;
+    
+    // Check if we've already processed this exact code
+    const alreadyProcessed = sessionStorage.getItem(authKey);
+    if (alreadyProcessed) {
+      console.log('This OAuth code has already been processed, skipping...');
+      return;
     }
-  };
+    
+    // Check if we're currently processing (prevents double call from React Strict Mode)
+    if (hasRunAuthRef.current || isProcessingRef.current) {
+      console.log('Auth already in progress, skipping...');
+      return;
+    }
 
-  useEffect(() => {
-    const code = searchParams.get('code');
-    const state = searchParams.get('state');
+    // Mark that we're processing
+    hasRunAuthRef.current = true;
+    isProcessingRef.current = true;
+    sessionStorage.setItem(authKey, 'true');
     
-    // Check if we've already run the auth process in this session
-    const hasRunAuth = sessionStorage.getItem(HAS_RUN_AUTH_KEY);
+    console.log('Starting auth process...');
     
-    if (code && state && !hasRunAuth) {
-      // Mark that we've run the auth process
-      sessionStorage.setItem(HAS_RUN_AUTH_KEY, 'true');
-      handleAuth();
-    } else if (hasRunAuth) {
-      // If we've already run auth, just redirect
-      console.log('Auth already processed in this session, redirecting...');
-      setTimeout(() => router.push('/integrations/synced-calendars'), 1000);
-    }
-  }, []); // Empty dependency array to run only once
+    // Handle the authentication
+    const handleAuth = async () => {
+      try {
+        if (state === "google") {
+          console.log("Calling googleAuthApiRequest with code:", code);
+          
+          const response = await googleAuthApiRequest(JSON.stringify({ code, state }));
+          console.log("Google auth response:", response);
+          setStatus('success');
+          setMessage('Google Calendar connected successfully! Redirecting...');
+          setTimeout(() => {
+            sessionStorage.removeItem(authKey); // Clean up after redirect
+            router.push('/integrations/synced-calendars');
+          }, 2000);
+        } else if (state === "outlook") {
+          console.log("Calling outlookAuthApiRequest with code:", code);
+          
+          const response = await outlookAuthApiRequest(JSON.stringify({ code, state }));
+          console.log("Outlook auth response:", response);
+          setStatus('success');
+          setMessage('Outlook Calendar connected successfully! Redirecting...');
+          setTimeout(() => {
+            sessionStorage.removeItem(authKey); // Clean up after redirect
+            router.push('/integrations/synced-calendars');
+          }, 2000);
+        } else {
+          console.error('Invalid state parameter:', state);
+          setStatus('error');
+          setMessage('Invalid authorization state. Redirecting back...');
+          setTimeout(() => {
+            sessionStorage.removeItem(authKey);
+            router.push('/integrations/synced-calendars');
+          }, 2000);
+        }
+      } catch (error: any) {
+        console.error('Token Exchange Error:', error);
+        setStatus('error');
+        setMessage(`Failed to connect ${state === 'google' ? 'Google' : 'Outlook'} Calendar. Redirecting back...`);
+        setTimeout(() => {
+          sessionStorage.removeItem(authKey);
+          router.push('/integrations/synced-calendars');
+        }, 2000);
+      } finally {
+        isProcessingRef.current = false;
+      }
+    };
+    
+    handleAuth();
+  }, [searchParams, router]);
 
 
   return (
