@@ -93,7 +93,7 @@ const CalendarsPage = () => {
         client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
         redirect_uri: `${process.env.NEXT_PUBLIC_GOOGLE_URL}integrations/success`,
         response_type: 'code',
-        scope: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.calendars.readonly openid email profile',
+        scope: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.calendarlist.readonly openid email profile',
         access_type: 'offline',
         prompt: 'consent',
         include_granted_scopes: 'true',
