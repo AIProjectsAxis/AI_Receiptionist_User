@@ -104,7 +104,7 @@ const CalendarsPage = () => {
     } else if (activeTab === "outlook") {
       const params = new URLSearchParams({
         client_id: process.env.NEXT_PUBLIC_OUTLOOK_CLIENT_ID || '',
-        redirect_uri: `${process.env.NEXT_PUBLIC_GOOGLE_URL}integrations/success`,
+        redirect_uri: `${process.env.NEXT_PUBLIC_OUTLOOK_REDIRECT_URI}integrations/success`,
         response_type: 'code',
         scope: 'offline_access openid profile https://graph.microsoft.com/Calendars.Read https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/User.Read',
         state: "outlook"
