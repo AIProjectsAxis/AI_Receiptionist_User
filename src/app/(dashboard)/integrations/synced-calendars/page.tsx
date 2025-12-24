@@ -30,6 +30,28 @@ interface CalendarList {
   others: Record<string, Calendar[]>;
 }
 
+// PKCE helper functions
+const generateCodeVerifier = (): string => {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return base64UrlEncode(array);
+};
+
+const base64UrlEncode = (buffer: Uint8Array): string => {
+  const base64 = btoa(String.fromCharCode(...buffer));
+  return base64
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+};
+
+const generateCodeChallenge = async (verifier: string): Promise<string> => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(verifier);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return base64UrlEncode(new Uint8Array(hash));
+};
+
 const CalendarsPage = () => {
   const [isAddCalendarOpen, setIsAddCalendarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("google");
@@ -87,7 +109,7 @@ const CalendarsPage = () => {
     });
   };
 
-  const connectNewAccount = () => {
+  const connectNewAccount = async () => {
     if (activeTab === "google") {
       const params = new URLSearchParams({
         client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
@@ -102,12 +124,21 @@ const CalendarsPage = () => {
 
       window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
     } else if (activeTab === "outlook") {
+      // Generate PKCE parameters
+      const codeVerifier = generateCodeVerifier();
+      const codeChallenge = await generateCodeChallenge(codeVerifier);
+      
+      // Store code verifier for later use
+      sessionStorage.setItem('outlook_code_verifier', codeVerifier);
+      
       const params = new URLSearchParams({
         client_id: process.env.NEXT_PUBLIC_OUTLOOK_CLIENT_ID || '',
         redirect_uri: `${process.env.NEXT_PUBLIC_OUTLOOK_REDIRECT_URI}integrations/success`,
         response_type: 'code',
         scope: 'offline_access openid profile https://graph.microsoft.com/Calendars.Read https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/User.Read',
-        state: "outlook"
+        state: "outlook",
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256'
       });
 
       window.location.href = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params.toString()}`;

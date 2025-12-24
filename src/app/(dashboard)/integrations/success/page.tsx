@@ -76,8 +76,26 @@ export default function OAuthCallbackPage() {
         } else if (state === "outlook") {
           console.log("Calling outlookAuthApiRequest with code:", code);
           
-          const response = await outlookAuthApiRequest(JSON.stringify({ code, state }));
+          // Retrieve the code verifier from sessionStorage
+          const codeVerifier = sessionStorage.getItem('outlook_code_verifier');
+          
+          if (!codeVerifier) {
+            console.error('Code verifier not found in sessionStorage');
+            setStatus('error');
+            setMessage('Authorization failed: Missing code verifier. Redirecting back...');
+            setTimeout(() => {
+              sessionStorage.removeItem(authKey);
+              router.push('/integrations/synced-calendars');
+            }, 2000);
+            return;
+          }
+          
+          const response = await outlookAuthApiRequest(JSON.stringify({ code, state, code_verifier: codeVerifier }));
           console.log("Outlook auth response:", response);
+          
+          // Clean up the code verifier after successful exchange
+          sessionStorage.removeItem('outlook_code_verifier');
+          
           setStatus('success');
           setMessage('Outlook Calendar connected successfully! Redirecting...');
           setTimeout(() => {
