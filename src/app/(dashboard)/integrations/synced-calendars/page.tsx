@@ -106,8 +106,9 @@ const CalendarsPage = () => {
         client_id: process.env.NEXT_PUBLIC_OUTLOOK_CLIENT_ID || '',
         redirect_uri: `${process.env.NEXT_PUBLIC_OUTLOOK_REDIRECT_URI}integrations/success`,
         response_type: 'code',
-        scope: 'offline_access openid profile https://graph.microsoft.com/Calendars.Read https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/User.Read',
-        state: "outlook"
+        scope: 'openid profile https://graph.microsoft.com/Calendars.Read https://graph.microsoft.com/Calendars.ReadWrite https://graph.microsoft.com/User.Read',
+        state: "outlook",
+        checks: "pkce"
       });
 
       window.location.href = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params.toString()}`;
