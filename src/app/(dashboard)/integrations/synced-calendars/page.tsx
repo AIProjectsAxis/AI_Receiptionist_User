@@ -540,10 +540,10 @@ const CalendarsPage = () => {
                                         ) : (
                                           <button
                                             className="px-5 py-2.5 border border-indigo-200 text-indigo-600 rounded-lg hover:bg-indigo-50 disabled:opacity-50 font-medium transition-all duration-200"
-                                            onClick={() => connectCalendar(calendar.calendar_id || '', calendar.connected_account_id, calendar)}
-                                            disabled={connectingCalendars[calendar.calendar_id || '']}
+                                            onClick={() => connectCalendar(calendar.id || '', calendar.connected_account_id, calendar)}
+                                            disabled={connectingCalendars[calendar.id || '']}
                                           >
-                                            {connectingCalendars[calendar.calendar_id || ''] ? (
+                                            {connectingCalendars[calendar.id || ''] ? (
                                               <>
                                                 <Loader2 className="h-4 w-4 mr-2 inline animate-spin" />
                                                 Connecting...
