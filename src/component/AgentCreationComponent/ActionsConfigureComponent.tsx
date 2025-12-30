@@ -128,7 +128,7 @@ export default function ActionsConfigureComponent({ agentDataForSettings, setAge
                             onClick={() => router.push('/actions-management')}
                             className="bg-[#6D4AFF] hover:bg-[#5a3ce0] text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:shadow-lg"
                         >
-                            Create Your First Action
+                            Create Your Action
                         </Button>
                     </div>)}
 
