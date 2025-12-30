@@ -172,7 +172,6 @@ const CallHistory: React.FC = () => {
     }
   }
 
-
   const totalPages = Math.ceil(totalCalls / itemsPerPage);
 
   const handlePageChange = (page: number) => {
