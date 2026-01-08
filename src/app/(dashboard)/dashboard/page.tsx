@@ -1,5 +1,5 @@
 "use client"
-export const runtime = 'edge';
+
 import React, { useState, useEffect, useRef, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Table from '@/component/common/Table';
@@ -10,7 +10,7 @@ import { Bot, Loader2, NotebookTabs, X } from 'lucide-react';
 import { GrAction } from 'react-icons/gr';
 import { FormInput, FormSelect } from '@/component/common/FormElements';
 
-import { formatDate, formatDateForAPI, formatDuration } from '@/_utils/general';
+import { formatDate, formatDateForAPI, formatDuration, getTimezoneAbbreviation } from '@/_utils/general';
 import { IoLanguageOutline } from 'react-icons/io5';
 import { CiCircleInfo } from 'react-icons/ci';
 import { useFormik } from 'formik';
@@ -36,6 +36,10 @@ const Dashboard: React.FC = () => {
   const [btnLoading, setBtnLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const companyData = useSelector((state: any) => state.company.companyData);
+  
+  // Get timezone from Redux store - API returns UTC times, we display in company's timezone
+  const timezone = companyData?.timezone || 'UTC';
+  const timezoneAbbr = getTimezoneAbbreviation(timezone);
 
 
   const defaultPrompt = {
@@ -197,10 +201,10 @@ const Dashboard: React.FC = () => {
       )
     },
     {
-      header: 'Date & Time',
+      header: `Date & Time ${timezoneAbbr ? `(${timezoneAbbr})` : ''}`,
       accessor: 'datetime',
       render: (row: any) => {
-        return <div className="font-medium text-sm">{formatDate(row.started_at)}</div>
+        return <div className="font-medium text-sm">{formatDate(row.started_at, timezone)}</div>
       }
     },
     {
@@ -217,14 +221,14 @@ const Dashboard: React.FC = () => {
       header: 'Name',
       accessor: 'name',
       render: (row: any) => (
-        <div className="font-medium">{row?.name || "--"}</div>
+        <div className="font-medium truncate max-w-[120px]">{row?.metadata?.full_name || "--"}</div>
       )
     },
     {
-      header: 'Date & Time',
+      header: `Date & Time ${timezoneAbbr ? `(${timezoneAbbr})` : ''}`,
       accessor: 'datetime',
       render: (row: any) => (
-        <div className="font-medium">{formatDate(row?.end_time)}</div>
+        <div className="font-medium">{formatDate(row?.end_time, timezone)}</div>
       )
     },
     {
@@ -273,11 +277,17 @@ const Dashboard: React.FC = () => {
   }
 
   const getCalendarEvents = async () => {
+    // Start date: Today
     const startDate = new Date();
+    
+    // End date: Today + 30 days
     const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 30);
+    
+    // Format dates after setting the correct range
     const startDateStr = formatDateForAPI(startDate);
     const endDateStr = formatDateForAPI(endDate);
-    endDate.setDate(endDate.getDate() + 30);
+    
     const response = await getCalendarEventsApiRequest(undefined, startDateStr, endDateStr);
     const data = response.data?.bookings.slice(0, 8);
     setCalanderBookings(data);
