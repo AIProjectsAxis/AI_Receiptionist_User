@@ -7,9 +7,6 @@ import { useSelector } from 'react-redux';
 import { FiMessageSquare } from 'react-icons/fi';
 import { getSmtpConfigApiRequest } from '@/network/api';
 import SmtpComponent from '@/component/SettingsComponent/SmtpComponent';
-import Card from '@/component/common/Card';
-import { FormGroup, FormLabel, FormSelect } from '@/component/common/FormElements';
-import Button from '@/component/common/Button';
 import NotificationComponent from '@/component/SettingsComponent/NotificationComponent/NotificationComponent';
 
 
@@ -29,9 +26,6 @@ const Settings = () => {
       console.log(error);
     }
   };
-
-
-
 
 
   const settingsSections = [

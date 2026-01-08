@@ -1,5 +1,4 @@
 "use client";
-export const runtime = 'edge';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, momentLocalizer, View } from 'react-big-calendar';
@@ -11,8 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Label } from '@/component/ui/label';
 import { getCalendarEventsApiRequest, getCalendarListApiRequest } from '@/network/api';
 import { Select, SelectItem, SelectTrigger, SelectValue, SelectContent } from '@/component/common/select';
-import { formatDateForAPI } from '@/_utils/general';
+import { formatDateForAPI, getTimezoneAbbreviation } from '@/_utils/general';
 import Link from 'next/link';
+import { useSelector } from 'react-redux';
 
 const localizer = momentLocalizer(require('moment'));
 
@@ -69,6 +69,12 @@ interface CalendarEvent {
 
 const Appointments: React.FC = () => {
   const singleTimeReload = useRef(true);
+  
+  // Get timezone from Redux store - API returns UTC times, we display in company's timezone
+  const companyData = useSelector((state: any) => state.company.companyData);
+  const timezone = companyData?.timezone || 'UTC';
+  const timezoneAbbr = getTimezoneAbbreviation(timezone);
+  
   const [appointments, setAppointments] = useState<CalendarEvent[]>([]);
   const [viewCalendarList, setViewCalendarList] = useState<any[]>([]);
   const [selectedAppointment, setSelectedAppointment] = useState<CalendarEvent | null>(null);
@@ -77,6 +83,26 @@ const Appointments: React.FC = () => {
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedCalendarId, setSelectedCalendarId] = useState<string>('');
+
+  // Format date in company's timezone for display
+  const formatDateTime = (date: Date | undefined): string => {
+    if (!date) return 'N/A';
+    try {
+      return date.toLocaleString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+        timeZone: timezone
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid Date';
+    }
+  };
 
 
 
@@ -133,23 +159,31 @@ const Appointments: React.FC = () => {
       const response = await getCalendarEventsApiRequest(Id, startDateStr, endDateStr);
       console.log("response fetchCalendarDataById----", response.data.bookings);
       if (response?.data?.bookings) {
-        const formattedEvents = response.data.bookings.map((booking: Booking) => ({
-          id: booking.id,
-          title: booking.summary,
-          summary: booking.summary,
-          start: new Date(booking.start_time),
-          end: new Date(booking.end_time),
-          description: booking.description,
-          location: booking.location,
-          email: booking.email || booking.metadata?.email_address || '',
-          phone: booking.phone_number,
-          name: booking.name,
-          status: booking.status,
-          metadata: booking.metadata,
-          created_at: booking.created_at,
-          updated_at: booking.updated_at,
-          reschedule_history: booking.reschedule_history
-        }));
+        // API returns dates in UTC, parse them correctly
+        const formattedEvents = response.data.bookings.map((booking: Booking) => {
+          // Parse UTC dates - these will be stored correctly as Date objects
+          // The calendar will display them, and we'll format them in company timezone in the modal
+          const startDate = new Date(booking.start_time);
+          const endDate = new Date(booking.end_time);
+          
+          return {
+            id: booking.id,
+            title: booking.summary,
+            summary: booking.summary,
+            start: startDate,
+            end: endDate,
+            description: booking.description,
+            location: booking.location,
+            email: booking.email || booking.metadata?.email_address || '',
+            phone: booking.phone_number,
+            name: booking.name,
+            status: booking.status,
+            metadata: booking.metadata,
+            created_at: booking.created_at,
+            updated_at: booking.updated_at,
+            reschedule_history: booking.reschedule_history
+          };
+        });
         setAppointments(formattedEvents);
       }
     } catch (error) {
@@ -212,7 +246,14 @@ const Appointments: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Calendar</h1>
-          <p className="text-base md:text-lg text-gray-500 mt-1">Manage your schedule with Calendar</p>
+          <p className="text-base md:text-lg text-gray-500 mt-1">
+            Manage your schedule with Calendar
+            {timezoneAbbr && (
+              <span className="ml-2 text-xs text-gray-400 font-normal">
+                • All times shown in {timezoneAbbr}
+              </span>
+            )}
+          </p>
         </div>
         {
           viewCalendarList?.length > 0 && (
@@ -253,12 +294,12 @@ const Appointments: React.FC = () => {
               <div className="space-y-2 w-1/2">
                 <p className='text-sm text-gray-500'>Select Calendar</p>
                 <Select onValueChange={handleCalendarSelect} value={selectedCalendarId}>
-                  <SelectTrigger className='bg-white w-full max-w-[300px]'>
+                  <SelectTrigger className='bg-white w-full cursor-pointer max-w-[300px]'>
                     <SelectValue placeholder="Select Calendar" />
                   </SelectTrigger>
-                  <SelectContent className='max-h-[200px] overflow-y-auto bg-white'>
+                  <SelectContent   className='max-h-[200px] cursor-pointer overflow-y-auto bg-white'>
                     {viewCalendarList?.map((item: any) => (
-                      <SelectItem key={item.id} value={item.id}>
+                      <SelectItem className='cursor-pointer' key={item.id} value={item.id}>
                         {item.name}
                       </SelectItem>
                     ))}
@@ -270,7 +311,8 @@ const Appointments: React.FC = () => {
                   {currentDate.toLocaleDateString('en-US', {
                     day: '2-digit',
                     month: 'short',
-                    year: 'numeric'
+                    year: 'numeric',
+                    timeZone: timezone
                   })}
                 </span>
                 <div className="flex space-x-1">
@@ -398,13 +440,15 @@ const Appointments: React.FC = () => {
 
             {/* Time Information */}
             <div>
-              <Label className="text-sm font-medium text-gray-700">Appointment Time</Label>
+              <Label className="text-sm font-medium text-gray-700">
+                Appointment Time {timezoneAbbr && `(${timezoneAbbr})`}
+              </Label>
               <div className="mt-1 space-y-1">
                 <p className="text-sm text-gray-900">
-                  <span className="font-medium">Start:</span> {selectedAppointment?.start?.toLocaleString()}
+                  <span className="font-medium">Start:</span> {formatDateTime(selectedAppointment?.start)}
                 </p>
                 <p className="text-sm text-gray-900">
-                  <span className="font-medium">End:</span> {selectedAppointment?.end?.toLocaleString()}
+                  <span className="font-medium">End:</span> {formatDateTime(selectedAppointment?.end)}
                 </p>
                 <p className="text-sm text-gray-600">
                   <span className="font-medium">Duration:</span> {

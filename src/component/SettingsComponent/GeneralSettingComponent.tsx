@@ -89,8 +89,10 @@ const GeneralSettingComponent = () => {
             const response = await updateCompanyApiRequest(payload)
             console.log('response', response)
             if (response) {
-                dispatch(getCompanyDataThunkRequest() as any)
                 toast.success('Company updated successfully')
+                dispatch(getCompanyDataThunkRequest() as any)
+                // setTimeout(()=>{
+                // }, 2000)
             }
         } catch (error) {
             console.log('error', error)
