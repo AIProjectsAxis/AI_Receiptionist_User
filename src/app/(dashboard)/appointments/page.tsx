@@ -67,6 +67,9 @@ interface CalendarEvent {
   created_at?: string;
   updated_at?: string;
   reschedule_history?: any;
+  // Store original UTC strings for proper formatting
+  startTimeUTC?: string;
+  endTimeUTC?: string;
 }
 
 const Appointments: React.FC = () => {
@@ -86,16 +89,16 @@ const Appointments: React.FC = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedCalendarId, setSelectedCalendarId] = useState<string>('');
 
-  // Convert UTC date string to Date object that displays correctly in company timezone
-  // Strategy: Create a Date object that, when displayed in browser timezone,
-  // shows the same time as it appears in company timezone
+  // Convert UTC date string to Date object that displays the company timezone time
+  // react-big-calendar displays in browser timezone, so we create a Date that shows
+  // the same time value as the company timezone (e.g., if company shows 1:30 PM, calendar shows 1:30 PM)
   const convertUTCToCompanyTimezone = (utcDateString: string): Date => {
     try {
-      // Step 1: Parse UTC and get the time as it appears in company timezone
+      // Parse UTC and get time in company timezone
       const utcDateTime = DateTime.fromISO(utcDateString, { zone: 'utc' });
       const companyDateTime = utcDateTime.setZone(timezone);
       
-      // Step 2: Get the time components in company timezone
+      // Get the time components as they appear in company timezone
       const year = companyDateTime.year;
       const month = companyDateTime.month;
       const day = companyDateTime.day;
@@ -103,43 +106,52 @@ const Appointments: React.FC = () => {
       const minute = companyDateTime.minute;
       const second = companyDateTime.second;
       
-      // Step 3: Create a Date object treating these components as browser local time
-      // This creates a moment that, when displayed in browser timezone, shows this time
-      const dateAsBrowserLocal = new Date(year, month - 1, day, hour, minute, second);
-      
-      // Step 4: Calculate what UTC moment this browser-local time represents
-      // Then adjust to account for the difference between browser and company timezone
-      const browserOffsetMs = dateAsBrowserLocal.getTimezoneOffset() * 60000;
-      const companyOffsetMs = companyDateTime.offset * 60000;
-      
-      // The difference tells us how much to adjust
-      // We want: browser displays company time, so we adjust by the offset difference
-      const adjustmentMs = companyOffsetMs - browserOffsetMs;
-      
-      // Step 5: Create the final Date object
-      // This Date, when displayed in browser timezone, will show the company timezone time
-      return new Date(dateAsBrowserLocal.getTime() - adjustmentMs);
+      return new Date(year, month - 1, day, hour, minute, second || 0);
     } catch (error) {
-      console.error('Error converting UTC to company timezone:', error, utcDateString);
-      // Fallback: return the UTC date as-is (will display in browser timezone)
+      console.error('Error converting UTC to company timezone:', error, {
+        utcDateString,
+        timezone,
+        error: error instanceof Error ? error.message : String(error)
+      });
       return new Date(utcDateString);
     }
   };
 
   // Format date in company's timezone for display
-  const formatDateTime = (date: Date | undefined): string => {
-    if (!date) return 'N/A';
+  // Use the original UTC string if available, otherwise format the Date object
+  const formatDateTime = (date: Date | undefined, utcString?: string): string => {
+    if (!date && !utcString) return 'N/A';
     try {
-      return date.toLocaleString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-        timeZone: timezone
-      });
+      // If we have the original UTC string, format it directly using Luxon
+      if (utcString) {
+        const utcDateTime = DateTime.fromISO(utcString, { zone: 'utc' });
+        const companyDateTime = utcDateTime.setZone(timezone);
+        return companyDateTime.toLocaleString({
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        });
+      }
+      
+      // Fallback: format the Date object
+      if (date) {
+        return date.toLocaleString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true,
+          timeZone: timezone
+        });
+      }
+      
+      return 'N/A';
     } catch (error) {
       console.error('Error formatting date:', error);
       return 'Invalid Date';
@@ -201,9 +213,9 @@ const Appointments: React.FC = () => {
       const response = await getCalendarEventsApiRequest(Id, startDateStr, endDateStr);
       console.log("response fetchCalendarDataById----", response.data.bookings);
       if (response?.data?.bookings) {
-        // API returns dates in UTC, convert them to company timezone before displaying
+        // API returns dates in UTC, convert them to company timezone for calendar display
         const formattedEvents = response.data.bookings.map((booking: Booking) => {
-          // Convert UTC dates to company timezone
+          // Convert UTC dates to company timezone for calendar display
           const startDate = convertUTCToCompanyTimezone(booking.start_time);
           const endDate = convertUTCToCompanyTimezone(booking.end_time);
           
@@ -222,7 +234,10 @@ const Appointments: React.FC = () => {
             metadata: booking.metadata,
             created_at: booking.created_at,
             updated_at: booking.updated_at,
-            reschedule_history: booking.reschedule_history
+            reschedule_history: booking.reschedule_history,
+            // Store original UTC strings for proper formatting in modal
+            startTimeUTC: booking.start_time,
+            endTimeUTC: booking.end_time
           };
         });
         setAppointments(formattedEvents);
@@ -486,16 +501,23 @@ const Appointments: React.FC = () => {
               </Label>
               <div className="mt-1 space-y-1">
                 <p className="text-sm text-gray-900">
-                  <span className="font-medium">Start:</span> {formatDateTime(selectedAppointment?.start)}
+                  <span className="font-medium">Start:</span> {formatDateTime(selectedAppointment?.start, selectedAppointment?.startTimeUTC)}
                 </p>
                 <p className="text-sm text-gray-900">
-                  <span className="font-medium">End:</span> {formatDateTime(selectedAppointment?.end)}
+                  <span className="font-medium">End:</span> {formatDateTime(selectedAppointment?.end, selectedAppointment?.endTimeUTC)}
                 </p>
                 <p className="text-sm text-gray-600">
                   <span className="font-medium">Duration:</span> {
-                    selectedAppointment?.start && selectedAppointment?.end
-                      ? `${Math.round((selectedAppointment.end.getTime() - selectedAppointment.start.getTime()) / (1000 * 60))} minutes`
-                      : 'N/A'
+                    selectedAppointment?.startTimeUTC && selectedAppointment?.endTimeUTC
+                      ? (() => {
+                          const start = DateTime.fromISO(selectedAppointment.startTimeUTC, { zone: 'utc' });
+                          const end = DateTime.fromISO(selectedAppointment.endTimeUTC, { zone: 'utc' });
+                          const duration = end.diff(start, 'minutes');
+                          return `${Math.round(duration.minutes)} minutes`;
+                        })()
+                      : selectedAppointment?.start && selectedAppointment?.end
+                        ? `${Math.round((selectedAppointment.end.getTime() - selectedAppointment.start.getTime()) / (1000 * 60))} minutes`
+                        : 'N/A'
                   }
                 </p>
               </div>
