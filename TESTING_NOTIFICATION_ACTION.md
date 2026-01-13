@@ -256,3 +256,5 @@ The system scans your email/SMS templates for variables like `{variable_name}`:
 - All variables are automatically added to the `required` array, so the AI must collect them all
 - The action is "blocking" (line 238), meaning the AI waits for completion before continuing
 
+
+
