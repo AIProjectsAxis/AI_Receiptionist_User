@@ -421,7 +421,7 @@ const TransferCallComponent = ({ setShowTransferCallForm, getAllActionList, view
                 </div>
 
                 {/* Transfer Settings */}
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                {/* <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                   <h4 className="text-sm font-medium text-gray-900 mb-4">Transfer Settings</h4>
                   <div className="grid grid-cols-2 gap-6">
                     <div>
@@ -452,7 +452,7 @@ const TransferCallComponent = ({ setShowTransferCallForm, getAllActionList, view
 
                     </div>
                   </div>
-                </div>
+                </div> */}
 
                 {/* Additional Settings */}
                 {/* E.164 checkbox removed, always enforced */}
