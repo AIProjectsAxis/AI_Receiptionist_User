@@ -75,13 +75,13 @@ const actionItems: ActionItem[] = [
     description: "Search and query information",
     category: "Tools"
   },
-  {
-    id: "end_call_tool",
-    name: "End Call",
-    icon: <FcEndCall className="text-[#6D4AFF] h-5 w-5" />,
-    description: "End the current call",
-    category: "Communication"
-  },
+  // {
+  //   id: "end_call_tool",
+  //   name: "End Call",
+  //   icon: <FcEndCall className="text-[#6D4AFF] h-5 w-5" />,
+  //   description: "End the current call",
+  //   category: "Communication"
+  // },
   {
     id: "zoho_action",
     name: "After Call Zoho Action",
