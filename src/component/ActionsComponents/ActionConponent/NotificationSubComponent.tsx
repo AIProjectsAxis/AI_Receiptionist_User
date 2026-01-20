@@ -11,6 +11,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/component/ui/form'
 import { Input } from '@/component/ui/input';
 import { Textarea } from '@/component/ui/textarea';
+import {createRoot} from 'react-dom/client'
+import Markdown from 'react-markdown'
+
 import { createActionApiRequest, getActionByIdApiRequest, getCalendarListApiRequest, updateActionApiRequest } from '@/network/api';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
@@ -97,6 +100,7 @@ const NotificationSubComponent = ({ isEdit, setViewEditActionId, setShowNotifica
   const [showVariableDropdown, setShowVariableDropdown] = useState<{ [key: string]: boolean }>({});
   const [activeTextarea, setActiveTextarea] = useState<{ field: string; index: number; cursorPosition: number } | null>(null);
   const [showCustomDropdown, setShowCustomDropdown] = useState<{ [key: string]: boolean }>({});
+  const [emailDisplayMode, setEmailDisplayMode] = useState<{ [key: number]: 'edit' | 'preview' | 'split' }>({});
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -961,17 +965,160 @@ const NotificationSubComponent = ({ isEdit, setViewEditActionId, setShowNotifica
                               name={`emailContents.${index}`}
                               render={({ field }) => (
                                 <FormItem className='w-full mt-5'>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <label className="text-sm font-medium text-gray-700">
+                                      Email Content <span className="text-red-500">*</span>
+                                    </label>
+                                    <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => setEmailDisplayMode(prev => ({ ...prev, [index]: 'edit' }))}
+                                        className={`text-xs font-medium flex items-center gap-1 px-3 py-1.5 rounded transition-colors ${
+                                          emailDisplayMode[index] === 'edit'
+                                            ? 'bg-white text-indigo-600 shadow-sm'
+                                            : 'text-gray-600 hover:text-gray-900'
+                                        }`}
+                                        title="Edit Mode"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                        Edit
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setEmailDisplayMode(prev => ({ ...prev, [index]: 'preview' }))}
+                                        className={`text-xs font-medium flex items-center gap-1 px-3 py-1.5 rounded transition-colors ${
+                                          emailDisplayMode[index] === 'preview'
+                                            ? 'bg-white text-indigo-600 shadow-sm'
+                                            : 'text-gray-600 hover:text-gray-900'
+                                        }`}
+                                        title="Preview Mode"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        Preview
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setEmailDisplayMode(prev => ({ ...prev, [index]: 'split' }))}
+                                        className={`text-xs font-medium flex items-center gap-1 px-3 py-1.5 rounded transition-colors ${
+                                          emailDisplayMode[index] === 'split'
+                                            ? 'bg-white text-indigo-600 shadow-sm'
+                                            : 'text-gray-600 hover:text-gray-900'
+                                        }`}
+                                        title="Split View"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                                        </svg>
+                                        Split
+                                      </button>
+                                    </div>
+                                  </div>
                                   <FormControl>
-                                    <Textarea
-                                      {...field}
-                                      value={field.value || ''}
-                                      placeholder="Email Content *"
-                                      className="w-full rounded-lg border-2 px-4 py-3 border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 h-24"
-                                      onFocus={(e) => handleTextareaFocus('emailContents', index, e)}
-                                      onClick={(e) => handleTextareaClick('emailContents', index, e)}
-                                      onInput={(e) => handleTextareaInput('emailContents', index, e)}
-                                      onKeyUp={(e) => handleTextareaKeyUp('emailContents', index, e)}
-                                    />
+                                    {emailDisplayMode[index] === 'preview' ? (
+                                      <div className="w-full rounded-lg border-2 px-4 py-3 border-gray-200 bg-white min-h-[200px] max-h-[400px] overflow-y-auto">
+                                        {field.value ? (
+                                          <div className="markdown-preview">
+                                            <Markdown
+                                              components={{
+                                                h1: ({node, ...props}) => <h1 className="text-2xl font-bold mb-2 mt-4" {...props} />,
+                                                h2: ({node, ...props}) => <h2 className="text-xl font-bold mb-2 mt-3" {...props} />,
+                                                h3: ({node, ...props}) => <h3 className="text-lg font-bold mb-2 mt-3" {...props} />,
+                                                p: ({node, ...props}) => <p className="mb-2" {...props} />,
+                                                strong: ({node, ...props}) => <strong className="font-bold" {...props} />,
+                                                em: ({node, ...props}) => <em className="italic" {...props} />,
+                                                ul: ({node, ...props}) => <ul className="list-disc list-inside mb-2 ml-4" {...props} />,
+                                                ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-2 ml-4" {...props} />,
+                                                li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                                                code: ({node, ...props}) => <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono" {...props} />,
+                                                blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-gray-300 pl-4 italic my-2" {...props} />,
+                                                a: ({node, ...props}) => <a className="text-indigo-600 hover:underline" {...props} />,
+                                              }}
+                                            >
+                                              {field.value}
+                                            </Markdown>
+                                          </div>
+                                        ) : (
+                                          <p className="text-gray-400 italic">No content to preview. Start typing to see the markdown preview.</p>
+                                        )}
+                                      </div>
+                                    ) : emailDisplayMode[index] === 'split' ? (
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div className="border-2 border-gray-200 rounded-lg">
+                                          <div className="bg-gray-50 px-3 py-2 border-b border-gray-200 flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                            <span className="text-xs font-medium text-gray-600">Edit</span>
+                                          </div>
+                                          <Textarea
+                                            {...field}
+                                            value={field.value || ''}
+                                            placeholder="Email Content *"
+                                            className="w-full rounded-b-lg border-0 px-4 py-3 focus:ring-0 focus:outline-none min-h-[200px] max-h-[400px] font-mono text-sm resize-none"
+                                            onFocus={(e) => handleTextareaFocus('emailContents', index, e)}
+                                            onClick={(e) => handleTextareaClick('emailContents', index, e)}
+                                            onInput={(e) => handleTextareaInput('emailContents', index, e)}
+                                            onKeyUp={(e) => handleTextareaKeyUp('emailContents', index, e)}
+                                          />
+                                        </div>
+                                        <div className="border-2 border-gray-200 rounded-lg">
+                                          <div className="bg-gray-50 px-3 py-2 border-b border-gray-200 flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            </svg>
+                                            <span className="text-xs font-medium text-gray-600">Preview</span>
+                                          </div>
+                                          <div className="px-4 py-3 min-h-[200px] max-h-[400px] overflow-y-auto">
+                                            {field.value ? (
+                                              <div className="markdown-preview">
+                                                <Markdown
+                                                  components={{
+                                                    h1: ({node, ...props}) => <h1 className="text-2xl font-bold mb-2 mt-4" {...props} />,
+                                                    h2: ({node, ...props}) => <h2 className="text-xl font-bold mb-2 mt-3" {...props} />,
+                                                    h3: ({node, ...props}) => <h3 className="text-lg font-bold mb-2 mt-3" {...props} />,
+                                                    p: ({node, ...props}) => <p className="mb-2" {...props} />,
+                                                    strong: ({node, ...props}) => <strong className="font-bold" {...props} />,
+                                                    em: ({node, ...props}) => <em className="italic" {...props} />,
+                                                    ul: ({node, ...props}) => <ul className="list-disc list-inside mb-2 ml-4" {...props} />,
+                                                    ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-2 ml-4" {...props} />,
+                                                    li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                                                    code: ({node, ...props}) => <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono" {...props} />,
+                                                    blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-gray-300 pl-4 italic my-2" {...props} />,
+                                                    a: ({node, ...props}) => <a className="text-indigo-600 hover:underline" {...props} />,
+                                                  }}
+                                                >
+                                                  {field.value}
+                                                </Markdown>
+                                              </div>
+                                            ) : (
+                                              <p className="text-gray-400 italic text-sm">Preview will appear here...</p>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <Textarea
+                                          {...field}
+                                          value={field.value || ''}
+                                          placeholder="Email Content&#10;Example:&#10;**Bold text**&#10;*Italic text*&#10;# Heading&#10;- List item"
+                                          className="w-full rounded-lg border-2 px-4 py-3 border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 min-h-[200px] font-mono text-sm"
+                                          onFocus={(e) => handleTextareaFocus('emailContents', index, e)}
+                                          onClick={(e) => handleTextareaClick('emailContents', index, e)}
+                                          onInput={(e) => handleTextareaInput('emailContents', index, e)}
+                                          onKeyUp={(e) => handleTextareaKeyUp('emailContents', index, e)}
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">
+                                          💡 Tip: Use Markdown syntax for formatting (**, *, #, -, etc.)
+                                        </p>
+                                      </>
+                                    )}
                                   </FormControl>
                                 </FormItem>
                               )}
